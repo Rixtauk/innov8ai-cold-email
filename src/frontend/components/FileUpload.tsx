@@ -419,7 +419,6 @@ function FileUpload({ onUpload }: FileUploadProps) {
         <style>{`
           .column-selector {
             width: 100%;
-            max-width: 900px;
             background: var(--color-bg-secondary);
             border: 1px solid var(--color-border);
             border-radius: var(--radius-xl);
@@ -442,7 +441,7 @@ function FileUpload({ onUpload }: FileUploadProps) {
 
           .selector-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: var(--space-lg);
             margin-bottom: var(--space-lg);
           }
@@ -590,7 +589,7 @@ function FileUpload({ onUpload }: FileUploadProps) {
             cursor: not-allowed;
           }
 
-          @media (max-width: 600px) {
+          @media (max-width: 900px) {
             .selector-grid {
               grid-template-columns: 1fr;
             }
