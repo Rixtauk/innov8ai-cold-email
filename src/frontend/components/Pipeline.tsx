@@ -7,6 +7,8 @@ interface PipelineProps {
 
 const stages = [
   { id: 'upload', label: 'Upload', icon: '📂' },
+  { id: 'knowledge_base', label: 'Framework', icon: '📚' },
+  { id: 'campaign_builder', label: 'Campaign', icon: '✉️' },
   { id: 'configure', label: 'Configure', icon: '⚙️' },
   { id: 'finding_emails', label: 'Find Emails', icon: '🔍' },
   { id: 'review', label: 'Review', icon: '👀' },
@@ -19,11 +21,13 @@ const stageOrder: Record<AppStage, number> = {
   loading: -2, // Not shown in pipeline
   setup: -1, // Not shown in pipeline
   upload: 0,
-  configure: 1,
-  finding_emails: 2,
-  review: 3,
-  enriching: 4,
-  complete: 5,
+  knowledge_base: 1,
+  campaign_builder: 2,
+  configure: 3,
+  finding_emails: 4,
+  review: 5,
+  enriching: 6,
+  complete: 7,
 };
 
 function Pipeline({ currentStage }: PipelineProps) {

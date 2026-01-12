@@ -110,18 +110,22 @@ function FileUpload({ onUpload }: FileUploadProps) {
   };
 
   const processWithSelectedColumns = useCallback(() => {
-    if (!parsedCSV || selectedWebsiteCol === -1) return;
+    // Require at least email OR domain column to be selected
+    if (!parsedCSV || (selectedWebsiteCol === -1 && selectedEmailCol === -1)) return;
 
     const { headers, rows } = parsedCSV;
     const leads: EnrichedLead[] = [];
 
     for (const row of rows) {
-      const websiteValue = row[selectedWebsiteCol];
-      if (!websiteValue) continue;
-
-      const validation = validateDomain(websiteValue);
+      const websiteValue = selectedWebsiteCol !== -1 ? row[selectedWebsiteCol] : undefined;
       const existingEmail = selectedEmailCol !== -1 ? row[selectedEmailCol]?.trim() : undefined;
       const hasExistingEmail = existingEmail && existingEmail.includes('@');
+
+      // Skip rows that have neither domain nor email
+      if (!websiteValue && !hasExistingEmail) continue;
+
+      // Only validate domain if we have one
+      const validation = websiteValue ? validateDomain(websiteValue) : { isValid: false, domain: '', tld: '', error: 'No domain provided' };
 
       // Collect extra fields (exclude selected columns)
       const extraFields: Record<string, string> = {};
@@ -136,27 +140,30 @@ function FileUpload({ onUpload }: FileUploadProps) {
         }
       });
 
-      // Determine status: if email exists, mark as completed; if invalid domain, skip; otherwise pending
+      // Determine status:
+      // - If has existing email: completed (skip scraping)
+      // - If has valid domain but no email: pending (needs scraping)
+      // - If no domain and no email: skipped
       let enrichmentStatus: EnrichedLead['enrichmentStatus'] = 'pending';
-      if (!validation.isValid) {
-        enrichmentStatus = 'skipped';
-      } else if (hasExistingEmail) {
+      if (hasExistingEmail) {
         enrichmentStatus = 'completed';
+      } else if (!websiteValue || !validation.isValid) {
+        enrichmentStatus = 'skipped';
       }
 
       const lead: EnrichedLead = {
-        website: websiteValue,
+        website: websiteValue || '',
         company: selectedCompanyCol !== -1 ? row[selectedCompanyCol] : undefined,
         email: hasExistingEmail ? existingEmail : undefined,
         extraFields: Object.keys(extraFields).length > 0 ? extraFields : undefined,
         enrichmentStatus,
-        domainValidation: {
+        domainValidation: websiteValue ? {
           isValid: validation.isValid,
           domain: validation.domain,
           tld: validation.tld,
           error: validation.error,
-        },
-        errorMessage: validation.isValid ? undefined : `Invalid domain: ${validation.error}`,
+        } : undefined,
+        errorMessage: websiteValue && !validation.isValid ? `Invalid domain: ${validation.error}` : undefined,
       };
 
       leads.push(lead);
@@ -291,23 +298,24 @@ function FileUpload({ onUpload }: FileUploadProps) {
         >
           <h3>Select Columns</h3>
           <p className="selector-subtitle">
-            We found {parsedCSV.rows.length} rows. Please select which columns contain the website URLs and company names.
+            We found {parsedCSV.rows.length} rows. Please select which columns to use.
           </p>
 
           <div className="selector-grid">
             <div className="selector-field">
-              <label>Website Column *</label>
+              <label>Domain Column (optional)</label>
               <select
                 value={selectedWebsiteCol}
                 onChange={(e) => setSelectedWebsiteCol(Number(e.target.value))}
               >
-                <option value={-1}>-- Select column --</option>
+                <option value={-1}>-- None (skip scraping) --</option>
                 {parsedCSV.headers.map((header, idx) => (
                   <option key={idx} value={idx}>
                     {header} (e.g., "{sampleRows[0]?.[idx]?.substring(0, 40) || ''}")
                   </option>
                 ))}
               </select>
+              <span className="field-hint">Used for website scraping and email discovery</span>
             </div>
 
             <div className="selector-field">
@@ -391,7 +399,7 @@ function FileUpload({ onUpload }: FileUploadProps) {
             <button
               className="confirm-btn"
               onClick={processWithSelectedColumns}
-              disabled={selectedWebsiteCol === -1}
+              disabled={selectedWebsiteCol === -1 && selectedEmailCol === -1}
             >
               Continue with {parsedCSV.rows.length} rows
             </button>

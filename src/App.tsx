@@ -9,6 +9,8 @@ import ConfigPanel from './frontend/components/ConfigPanel';
 import ExportPanel from './frontend/components/ExportPanel';
 import UsageMonitor from './frontend/components/UsageMonitor';
 import APISetup from './frontend/components/APISetup';
+import KnowledgeBase from './frontend/components/KnowledgeBase';
+import CampaignBuilder from './frontend/components/CampaignBuilder';
 import { APIUsageProvider, useAPIUsage } from './frontend/hooks/useAPIUsage';
 import {
   initEnrichment,
@@ -17,9 +19,9 @@ import {
   checkServerEnvVars,
   hasServerEnvVars,
 } from './api/enrichment';
-import type { EnrichedLead, EnrichmentConfig } from './agent/types';
+import type { EnrichedLead, EnrichmentConfig, KnowledgeBase as KnowledgeBaseType, Campaign } from './agent/types';
 
-export type AppStage = 'loading' | 'setup' | 'upload' | 'configure' | 'finding_emails' | 'review' | 'enriching' | 'complete';
+export type AppStage = 'loading' | 'setup' | 'upload' | 'knowledge_base' | 'campaign_builder' | 'configure' | 'finding_emails' | 'review' | 'enriching' | 'complete';
 
 const defaultConfig: EnrichmentConfig = {
   maxConcurrency: 3,
@@ -40,6 +42,8 @@ function AppContent() {
   const [config, setConfig] = useState<EnrichmentConfig>(defaultConfig);
   const [processingIndex, setProcessingIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState<KnowledgeBaseType | null>(null);
+  const [_campaign, setCampaign] = useState<Campaign | null>(null); // Will be used for export
   const { addUsage } = useAPIUsage();
 
   // Store scraped content for icebreaker generation
@@ -73,7 +77,26 @@ function AppContent() {
   const handleFileUpload = useCallback((parsedLeads: EnrichedLead[]) => {
     setLeads(parsedLeads);
     setError(null);
+    setStage('knowledge_base');
+  }, []);
+
+  const handleKnowledgeBaseSelect = useCallback((kb: KnowledgeBaseType) => {
+    setSelectedKnowledgeBase(kb);
+    setStage('campaign_builder');
+  }, []);
+
+  const handleSkipKnowledgeBase = useCallback(() => {
+    setSelectedKnowledgeBase(null);
     setStage('configure');
+  }, []);
+
+  const handleCampaignComplete = useCallback((newCampaign: Campaign) => {
+    setCampaign(newCampaign);
+    setStage('configure');
+  }, []);
+
+  const handleBackToKnowledgeBase = useCallback(() => {
+    setStage('knowledge_base');
   }, []);
 
   // Step 1: Find Emails using real APIs
@@ -216,6 +239,8 @@ function AppContent() {
     setSelectedLeads(new Set());
     setProcessingIndex(0);
     setError(null);
+    setSelectedKnowledgeBase(null);
+    setCampaign(null);
     scrapedContentRef.current.clear();
   };
 
@@ -318,6 +343,37 @@ function AppContent() {
               transition={{ duration: 0.3 }}
             >
               <FileUpload onUpload={handleFileUpload} />
+            </motion.div>
+          )}
+
+          {stage === 'knowledge_base' && (
+            <motion.div
+              key="knowledge_base"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <KnowledgeBase
+                onSelect={handleKnowledgeBaseSelect}
+                onSkip={handleSkipKnowledgeBase}
+              />
+            </motion.div>
+          )}
+
+          {stage === 'campaign_builder' && (
+            <motion.div
+              key="campaign_builder"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <CampaignBuilder
+                knowledgeBase={selectedKnowledgeBase || undefined}
+                onComplete={handleCampaignComplete}
+                onBack={handleBackToKnowledgeBase}
+              />
             </motion.div>
           )}
 

@@ -88,3 +88,111 @@ export const CLAUDE_PRICING = {
   'claude-3-opus-20240229': { input: 15.00, output: 75.00 },
   'default': { input: 3.00, output: 15.00 },
 } as const;
+
+/**
+ * Campaign Builder Types
+ */
+
+// Knowledge Base (persisted to localStorage)
+export interface KnowledgeBase {
+  id: string;
+  name: string;
+  content: string;  // Markdown content
+  createdAt: string;  // ISO string for JSON serialisation
+  updatedAt: string;
+}
+
+// Email component types
+export type EmailComponentType = 'subject' | 'preview' | 'hook' | 'problem' | 'agitate' | 'solution' | 'cta' | 'ps';
+
+// Email component with A/B variants
+export interface EmailComponent {
+  type: EmailComponentType;
+  variantA: string;
+  variantB: string;
+}
+
+// Email position in sequence
+export type EmailPosition = 1 | 2 | 3;
+
+// Single email in sequence
+export interface SequenceEmail {
+  position: EmailPosition;
+  label: string;  // "Intro Email", "Follow-up", "Break-up"
+  components: EmailComponent[];
+  delayDays: number;  // Days after previous email (0 for first email)
+}
+
+// Full campaign template
+export interface Campaign {
+  id: string;
+  name: string;
+  knowledgeBaseId: string;
+  sequence: SequenceEmail[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Generated email content for a single lead
+export interface GeneratedEmailContent {
+  position: EmailPosition;
+  subject: { variantA: string; variantB: string };
+  preview: { variantA: string; variantB: string };
+  body: { variantA: string; variantB: string };  // Assembled from components
+}
+
+// Extended lead with campaign data
+export interface CampaignLead extends EnrichedLead {
+  campaignId?: string;
+  hook?: { variantA: string; variantB: string };  // AI-generated per lead
+  emails?: GeneratedEmailContent[];  // All 3 emails with both variants
+}
+
+// Default 3-email sequence structure
+export const DEFAULT_SEQUENCE: SequenceEmail[] = [
+  {
+    position: 1,
+    label: 'Intro Email',
+    delayDays: 0,
+    components: [
+      { type: 'subject', variantA: '', variantB: '' },
+      { type: 'preview', variantA: '', variantB: '' },
+      { type: 'hook', variantA: '{{hook}}', variantB: '{{hook}}' },
+      { type: 'problem', variantA: '', variantB: '' },
+      { type: 'agitate', variantA: '', variantB: '' },
+      { type: 'solution', variantA: '', variantB: '' },
+      { type: 'cta', variantA: '', variantB: '' },
+      { type: 'ps', variantA: '', variantB: '' },
+    ],
+  },
+  {
+    position: 2,
+    label: 'Follow-up',
+    delayDays: 3,
+    components: [
+      { type: 'subject', variantA: '', variantB: '' },
+      { type: 'preview', variantA: '', variantB: '' },
+      { type: 'hook', variantA: '', variantB: '' },
+      { type: 'problem', variantA: '', variantB: '' },
+      { type: 'agitate', variantA: '', variantB: '' },
+      { type: 'solution', variantA: '', variantB: '' },
+      { type: 'cta', variantA: '', variantB: '' },
+      { type: 'ps', variantA: '', variantB: '' },
+    ],
+  },
+  {
+    position: 3,
+    label: 'Break-up',
+    delayDays: 5,
+    components: [
+      { type: 'subject', variantA: '', variantB: '' },
+      { type: 'preview', variantA: '', variantB: '' },
+      { type: 'hook', variantA: '', variantB: '' },
+      { type: 'problem', variantA: '', variantB: '' },
+      { type: 'agitate', variantA: '', variantB: '' },
+      { type: 'solution', variantA: '', variantB: '' },
+      { type: 'cta', variantA: '', variantB: '' },
+      { type: 'ps', variantA: '', variantB: '' },
+    ],
+  },
+];
