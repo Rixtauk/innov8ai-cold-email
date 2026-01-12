@@ -12,7 +12,6 @@ import APISetup from './frontend/components/APISetup';
 import { APIUsageProvider, useAPIUsage } from './frontend/hooks/useAPIUsage';
 import {
   initEnrichment,
-  isEnrichmentReady,
   findEmailsForLeads,
   generateIcebreakersForLeads,
   checkServerEnvVars,
