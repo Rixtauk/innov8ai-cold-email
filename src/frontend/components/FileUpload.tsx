@@ -19,6 +19,7 @@ function FileUpload({ onUpload }: FileUploadProps) {
   const [parsedCSV, setParsedCSV] = useState<ParsedCSV | null>(null);
   const [selectedWebsiteCol, setSelectedWebsiteCol] = useState<number>(-1);
   const [selectedCompanyCol, setSelectedCompanyCol] = useState<number>(-1);
+  const [selectedEmailCol, setSelectedEmailCol] = useState<number>(-1);
 
   // Proper CSV parsing that handles quoted fields with commas
   const parseCSVContent = (content: string): { headers: string[]; rows: string[][] } => {
@@ -119,20 +120,36 @@ function FileUpload({ onUpload }: FileUploadProps) {
       if (!websiteValue) continue;
 
       const validation = validateDomain(websiteValue);
+      const existingEmail = selectedEmailCol !== -1 ? row[selectedEmailCol]?.trim() : undefined;
+      const hasExistingEmail = existingEmail && existingEmail.includes('@');
 
-      // Collect extra fields
+      // Collect extra fields (exclude selected columns)
       const extraFields: Record<string, string> = {};
       headers.forEach((header, idx) => {
-        if (idx !== selectedWebsiteCol && idx !== selectedCompanyCol && row[idx]) {
+        if (
+          idx !== selectedWebsiteCol &&
+          idx !== selectedCompanyCol &&
+          idx !== selectedEmailCol &&
+          row[idx]
+        ) {
           extraFields[header] = row[idx];
         }
       });
 
+      // Determine status: if email exists, mark as completed; if invalid domain, skip; otherwise pending
+      let enrichmentStatus: EnrichedLead['enrichmentStatus'] = 'pending';
+      if (!validation.isValid) {
+        enrichmentStatus = 'skipped';
+      } else if (hasExistingEmail) {
+        enrichmentStatus = 'completed';
+      }
+
       const lead: EnrichedLead = {
         website: websiteValue,
         company: selectedCompanyCol !== -1 ? row[selectedCompanyCol] : undefined,
+        email: hasExistingEmail ? existingEmail : undefined,
         extraFields: Object.keys(extraFields).length > 0 ? extraFields : undefined,
-        enrichmentStatus: validation.isValid ? 'pending' : 'skipped',
+        enrichmentStatus,
         domainValidation: {
           isValid: validation.isValid,
           domain: validation.domain,
@@ -154,7 +171,8 @@ function FileUpload({ onUpload }: FileUploadProps) {
     setParsedCSV(null);
     setSelectedWebsiteCol(-1);
     setSelectedCompanyCol(-1);
-  }, [parsedCSV, selectedWebsiteCol, selectedCompanyCol, onUpload]);
+    setSelectedEmailCol(-1);
+  }, [parsedCSV, selectedWebsiteCol, selectedCompanyCol, selectedEmailCol, onUpload]);
 
   const handleFile = useCallback((file: File) => {
     setError(null);
@@ -306,6 +324,22 @@ function FileUpload({ onUpload }: FileUploadProps) {
                 ))}
               </select>
             </div>
+
+            <div className="selector-field">
+              <label>Email Column (optional)</label>
+              <select
+                value={selectedEmailCol}
+                onChange={(e) => setSelectedEmailCol(Number(e.target.value))}
+              >
+                <option value={-1}>-- None (find emails) --</option>
+                {parsedCSV.headers.map((header, idx) => (
+                  <option key={idx} value={idx}>
+                    {header} (e.g., "{sampleRows[0]?.[idx]?.substring(0, 40) || ''}")
+                  </option>
+                ))}
+              </select>
+              <span className="field-hint">If selected, rows with emails will skip email discovery</span>
+            </div>
           </div>
 
           <div className="preview-table">
@@ -316,7 +350,8 @@ function FileUpload({ onUpload }: FileUploadProps) {
                   {parsedCSV.headers.map((h, i) => (
                     <th key={i} className={
                       i === selectedWebsiteCol ? 'selected-website' :
-                      i === selectedCompanyCol ? 'selected-company' : ''
+                      i === selectedCompanyCol ? 'selected-company' :
+                      i === selectedEmailCol ? 'selected-email' : ''
                     }>
                       {h}
                     </th>
@@ -329,7 +364,8 @@ function FileUpload({ onUpload }: FileUploadProps) {
                     {row.map((cell, ci) => (
                       <td key={ci} className={
                         ci === selectedWebsiteCol ? 'selected-website' :
-                        ci === selectedCompanyCol ? 'selected-company' : ''
+                        ci === selectedCompanyCol ? 'selected-company' :
+                        ci === selectedEmailCol ? 'selected-email' : ''
                       }>
                         {cell?.substring(0, 30)}{cell?.length > 30 ? '...' : ''}
                       </td>
@@ -347,6 +383,7 @@ function FileUpload({ onUpload }: FileUploadProps) {
                 setParsedCSV(null);
                 setSelectedWebsiteCol(-1);
                 setSelectedCompanyCol(-1);
+                setSelectedEmailCol(-1);
               }}
             >
               Cancel
@@ -433,7 +470,7 @@ function FileUpload({ onUpload }: FileUploadProps) {
             background: var(--color-bg-elevated);
             border: 1px solid var(--color-border);
             border-radius: var(--radius-md);
-            overflow: hidden;
+            overflow-x: auto;
             margin-bottom: var(--space-lg);
           }
 
@@ -484,6 +521,19 @@ function FileUpload({ onUpload }: FileUploadProps) {
           .preview-table .selected-company {
             background: rgba(167, 139, 250, 0.1);
             color: #a78bfa;
+          }
+
+          .preview-table .selected-email {
+            background: rgba(74, 222, 128, 0.1);
+            color: #4ade80;
+          }
+
+          .field-hint {
+            display: block;
+            font-size: 0.7rem;
+            color: var(--color-text-muted);
+            margin-top: var(--space-xs);
+            font-style: italic;
           }
 
           .selector-actions {

@@ -284,12 +284,26 @@ export async function findEmailsForLeads(
   console.log('[findEmailsForLeads] Starting with', leads.length, 'leads');
   console.log('[findEmailsForLeads] API keys initialized:', isEnrichmentReady());
 
-  const validLeads = leads.filter(l => l.domainValidation?.isValid);
-  console.log('[findEmailsForLeads] Valid leads:', validLeads.length);
+  // Separate leads that already have emails from those that need discovery
+  const leadsWithEmails = leads.filter(l => l.email && l.email.includes('@'));
+  const leadsNeedingEmails = leads.filter(l => !l.email || !l.email.includes('@'));
+
+  console.log('[findEmailsForLeads] Leads with existing emails (skipping):', leadsWithEmails.length);
+  console.log('[findEmailsForLeads] Leads needing email discovery:', leadsNeedingEmails.length);
+
+  const validLeads = leadsNeedingEmails.filter(l => l.domainValidation?.isValid);
+  console.log('[findEmailsForLeads] Valid leads to process:', validLeads.length);
   console.log('[findEmailsForLeads] Sample lead:', leads[0]);
 
   const results: EnrichmentResult[] = [];
   const usage = { inputTokens: 0, outputTokens: 0, scrapedPages: 0 };
+
+  // Add leads with existing emails directly to results (already completed)
+  for (const lead of leadsWithEmails) {
+    results.push({
+      lead: { ...lead, enrichmentStatus: 'completed' }
+    });
+  }
 
   // Process with concurrency control
   const { maxConcurrency } = config;
@@ -335,8 +349,8 @@ export async function findEmailsForLeads(
     results.push(...batchResults);
   }
 
-  // Add results for skipped (invalid) leads
-  const skippedLeads = leads.filter(l => !l.domainValidation?.isValid);
+  // Add results for skipped (invalid) leads - only those that needed email discovery
+  const skippedLeads = leadsNeedingEmails.filter(l => !l.domainValidation?.isValid);
   for (const lead of skippedLeads) {
     results.push({ lead: { ...lead, enrichmentStatus: 'skipped' } });
   }
